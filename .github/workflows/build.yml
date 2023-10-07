@@ -22,10 +22,8 @@ jobs:
           ref: main
 
       - name: Prepare installation
-        run:
-          cd install
-          git checkout -b release/${{github.sha}}
-          find . -iname 'main-*' -exec git rm \{\} \;
+        run: |
+          find install -iname 'main-*' -delete;
 
       - name: Build
         run: |
