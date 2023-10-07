@@ -1,0 +1,7 @@
+---
+string: 'String'
+number: 42
+another_string: 'Another string'
+root:
+  branch:
+    leaf: 'A small leaf'

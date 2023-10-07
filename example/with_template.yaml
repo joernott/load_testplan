@@ -1,0 +1,9 @@
+---
+string: 'String'
+number: 42
+another_string: 'Another string'
+root:
+  branch:
+    leaf: 'A small leaf'
+template_string: '{{ .Github.Repository }}'
+path: '{{ .Env.PATH }}'

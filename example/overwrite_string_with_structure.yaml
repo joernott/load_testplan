@@ -1,0 +1,8 @@
+---
+another_string:
+  string: 'Another string'
+  array:
+    - First
+    - Second
+    - Third
+  number: 42
