@@ -33,8 +33,10 @@ jobs:
       - name: Build
         run: |
           cd source
-          for GOOS in linux, windows, darwin; do
+          for GOOS in linux windows; do
+            export GOOS
             for GOARCH in arm64 amd64; do
+              export GOARCH
               go build -ldflags="-s -w" -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
             done
           done
@@ -51,7 +53,7 @@ jobs:
       - name: Install
         run:
           cd install
-          for GOOS in linux, windows, darwin; do
+          for GOOS in linux windows; do
             for GOARCH in arm64 amd64; do
               git add "main-${GOOS}-${GOARCH}-${{github.sha}}"
             done
