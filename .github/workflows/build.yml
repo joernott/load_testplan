@@ -21,6 +21,11 @@ jobs:
           path: install
           ref: main
 
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'source/go.mod'
+
       - name: Prepare installation
         run: |
           find install -iname 'main-*' -delete;
@@ -30,10 +35,18 @@ jobs:
           cd source
           for GOOS in linux, windows, darwin; do
             for GOARCH in arm64 amd64; do
-              go build -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
+              go build -ldflags="-s -w" -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
             done
           done
           sed -e "s|__VERSION__|${{github.sha}}|" invoke-binary.js.dist >../install/invoke-binary.js
+
+      - name: Run UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          version: latest
+          files: |
+            install/main-*
+          args: -fq
 
       - name: Install
         run:
