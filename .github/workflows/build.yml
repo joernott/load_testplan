@@ -51,17 +51,6 @@ jobs:
             install/main-windows-amd64-*
           args: -fq
 
-      - name: Install
-        run: |
-          cd install
-          for GOOS in linux windows; do
-            for GOARCH in arm64 amd64; do
-              git add "main-${GOOS}-${GOARCH}-${{github.sha}}"
-            done
-          done
-          git add invoke-binary.js
-          git commit -m "Create binaries from ${{github.sha}}"
-
       - name: Create branch and Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
