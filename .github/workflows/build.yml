@@ -52,7 +52,7 @@ jobs:
           args: -fq
 
       - name: Install
-        run:
+        run: |
           cd install
           for GOOS in linux windows; do
             for GOARCH in arm64 amd64; do
