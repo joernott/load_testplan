@@ -1,0 +1,29 @@
+name: 'load_testplan'
+description: 'Loads and merges multiple yaml files and sets github actions and outputs'
+inputs:
+  files:
+    description: 'Comma separated list of yaml files which will me merged from left to right'
+    required: true
+  separator:
+    description: 'Separator for chaining the yaml hierarch levels'
+    required: false
+    default: '_'
+  set_output:
+    description: 'Should the values be added to the actions outputs'
+    required: false
+    default: false
+  set_env:
+    description: 'Should the values be added to the environment variables'
+    required: false
+    default: false
+  logfile:
+    description: 'Logfile to use, a dash (-) means stdout'
+    required: false
+    default: '-'
+  loglevel:
+    description: 'Loglevel for the action, one of PANIC,FATAL,ERROR,WARN,INFO,DEBUG,TRACE'
+    required: false
+    default: 'WARN'
+runs:
+  using: 'node20'
+  main: 'invoke-binary.js'
