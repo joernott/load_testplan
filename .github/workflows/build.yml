@@ -59,7 +59,7 @@ jobs:
               git add "main-${GOOS}-${GOARCH}-${{github.sha}}"
             done
           done
-          git add invoke-binary.js.dist
+          git add invoke-binary.js
           git commit -m "Create binaries from ${{github.sha}}"
 
       - name: Create branch and Pull Request
