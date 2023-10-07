@@ -1,0 +1,57 @@
+name: build
+# Build the binaries and prepare a release
+
+on:
+  push:
+    branches:
+      - 'development'
+
+jobs:
+  build:
+    runs-on: ${{ fromJSON(inputs.runs_on) }}
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          path: install
+          ref: main
+
+      - name: Prepare installation
+        run:
+          cd install
+          git checkout -b release/${{github.sha}}
+          find . -iname 'main-*' -exec git rm \{\} \;
+
+      - name: Build
+        run: |
+          cd source
+          for GOOS in linux, windows, darwin; do
+            for GOARCH in arm64 amd64; do
+              go build -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
+            done
+          done
+          sed -e "s|__VERSION__|${{github.sha}}|" invoke-binary.js.dist >../install/invoke-binary.js
+
+      - name: Install
+        run:
+          cd install
+          for GOOS in linux, windows, darwin; do
+            for GOARCH in arm64 amd64; do
+              git add "main-${GOOS}-${GOARCH}-${{github.sha}}"
+            done
+          done
+          git add invoke-binary.js.dist
+          git commit -m "Create binaries from ${{github.sha}}"
+
+      - name: Create branch and Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          path: 'install'
+          branch: 'build/build_${{github.sha}}'
+          assignees: 'joernott'
+          reviewers: 'joernott'
