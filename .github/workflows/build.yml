@@ -47,7 +47,8 @@ jobs:
         with:
           version: latest
           files: |
-            install/main-*
+            install/main-linux-*
+            install/main-windows-amd64-*
           args: -fq
 
       - name: Install
