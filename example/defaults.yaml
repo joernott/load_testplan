@@ -5,3 +5,6 @@ another_string: 'Another string'
 root:
   branch:
     leaf: 'A small leaf'
+array:
+  - First
+  - Second

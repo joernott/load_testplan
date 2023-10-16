@@ -1,0 +1,5 @@
+  missing_anchor: *anchor
+line_without_colon
+    wrong: 'This indentation is bad'
+back: 'Now we are back at line one'
+    - And a list which should not be here

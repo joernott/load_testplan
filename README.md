@@ -3,6 +3,11 @@ This github action loads one or more yaml files, applying golang templating and
 merging them together to generate either environment variables or outputs to be
 used in github actions.
 
+The code is maintained in the (development branch)[https://github.com/joernott/load_testplan/tree/development],
+the (main branch)[https://github.com/joernott/load_testplan/tree/main] only
+contains the binaries for the action itself to reduce the amount of data to
+download.
+
 ## Usage
 To use this action in your workflow and convert the content of some yaml files into outputs, you can use
 ```yaml
@@ -11,6 +16,7 @@ To use this action in your workflow and convert the content of some yaml files i
     files: 'example/defaults.yaml.example/overwrite_string_with_structure.yaml'
     set_output: true
     set_env: true
+    set_print: true
     separator: '_'
 ```
 
@@ -39,6 +45,27 @@ the environment variable $GITHUB_OUTPUT.
 When set to true, the action will write the variables to the file defined in
 the environment variable $GITHUB_ENV.
 
+**set_print**: _Optional_, default: false  
+When set to true, the action will write the variables with their values to
+stdout to provide some debugging information. Keys on the first level with a
+structure below will be interpreted as headings and printed in purple.
+
+```yaml
+compile:
+  flags: '--foo'
+```
+
+will render as
+
+```
+compile
+compile_flags='--foo'
+```
+
+**yaml**: _Optional_, default: ''  
+If you provide a file name here, the merged and processed yaml will be written
+into the file. This helps debugging merge issues.
+
 **logfile**: _Optional_, default: '-'  
 Tis defines where the actions log messages/output should go. The default "-"
 means logging to stdout.
@@ -46,6 +73,12 @@ means logging to stdout.
 **loglevel**: _Optional_, default: 'WARN'
 How verbose should the action log what it is doing. The levels (in order of
 increasing verbosity) are PANIC, FATAL, ERROR, WARN, INFO, DEBUG, TRACE.
+
+**generate_job**: _Optional_, default: false
+If you set generate_job to true, this will create a file "job_load_testplan.yml" which
+contains a job running the testplan with exactly the input parameters specified and defining
+job outputs for every key found in the loaded yaml file(s). Copying from this
+file can save you a lot of time when you have a lot of outputs you want to use in the workflow.
 
 ## Templating
 

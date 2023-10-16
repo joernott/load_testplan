@@ -1,0 +1,6 @@
+load_testplan.exe
+load_testplan
+job_load_testplan.yml
+*.tmp
+debug.yml
+coverage.out
