@@ -11,9 +11,14 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	if os.Getenv("GITHUB_ENV") == "" {
+		// running locally
+		os.Setenv("GITHUB_ENV", "../env.tmp")
+	}
+	t.Setenv("INPUT_LOGLEVEL", "TRACE")
 
 	t.Run("Empty mandatory parameters", func(t *testing.T) {
-		os.Unsetenv("INPUT_files")
+		t.Setenv("INPUT_FILES", "")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the mandatory parameters are not set")
@@ -22,7 +27,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Non-existing file", func(t *testing.T) {
-		os.Setenv("INPUT_files", "nonexistant_yaml_file")
+		t.Setenv("INPUT_FILES", "nonexistant_yaml_file")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the yaml file does not exist")
@@ -31,7 +36,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Broken yaml file", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/kaputt.yaml")
+		t.Setenv("INPUT_FILES", "../example/kaputt.yaml")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the yaml file is broken")
@@ -40,7 +45,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Yaml without templating", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/defaults.yaml")
+		t.Setenv("INPUT_FILES", "../example/defaults.yaml")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -91,7 +96,7 @@ root:
 		}))
 		defer svr.Close()
 
-		os.Setenv("INPUT_files", svr.URL)
+		t.Setenv("INPUT_FILES", svr.URL)
 		t.Logf("URL: %v", svr.URL)
 		plan, err := New()
 		if err != nil {
@@ -126,7 +131,7 @@ root:
 		}))
 		defer svr.Close()
 
-		os.Setenv("INPUT_files", svr.URL)
+		t.Setenv("INPUT_FILES", svr.URL)
 		t.Logf("URL: %v", svr.URL)
 		_, err := New()
 		if err == nil {
@@ -135,9 +140,9 @@ root:
 	})
 
 	t.Run("Yaml with templating", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/with_template.yaml")
-		os.Setenv("GITHUB_REPOSITORY", "joernott/load_testplan")
-		os.Setenv("PATH", "/bin:/usr/bin")
+		t.Setenv("INPUT_FILES", "../example/with_template.yaml")
+		t.Setenv("GITHUB_REPOSITORY", "joernott/load_testplan")
+		t.Setenv("PATH", "/bin:/usr/bin")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -150,7 +155,7 @@ root:
 	})
 
 	t.Run("Merging yaml", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
+		t.Setenv("INPUT_FILES", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -176,16 +181,16 @@ root:
 	})
 
 	t.Run("Test inputs", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
-		os.Setenv("INPUT_separator", "__")
-		os.Setenv("GITHUB_OUTPUT", "../output.tmp")
-		os.Setenv("INPUT_set_output", "true")
-		os.Setenv("GITHUB_ENV", "../env.tmp")
-		os.Setenv("INPUT_set_env", "true")
-		os.Setenv("INPUT_set_print", "true")
-		os.Setenv("INPUT_yaml", "../yaml.tmp")
-		os.Setenv("INPUT_generate_job", "true")
-		os.Setenv("INPUT_logfile", "../logfile.tmp")
+		t.Setenv("INPUT_FILES", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
+		t.Setenv("INPUT_SEPARATOR", "__")
+		t.Setenv("GITHUB_OUTPUT", "../output.tmp")
+		t.Setenv("INPUT_SET_OUTPUT", "true")
+		t.Setenv("GITHUB_ENV", "../env.tmp")
+		t.Setenv("INPUT_SET_ENV", "true")
+		t.Setenv("INPUT_SET_PRINT", "true")
+		t.Setenv("INPUT_YAML", "../yaml.tmp")
+		t.Setenv("INPUT_GENERATE_JOB", "true")
+		t.Setenv("INPUT_LOGFILE", "../logfile.tmp")
 
 		plan, err := New()
 		if err != nil {
@@ -238,8 +243,8 @@ root:
 	levels := [7]string{"PANIC", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"}
 	for _, l := range levels {
 		t.Run("Test loglevel", func(t *testing.T) {
-			os.Setenv("INPUT_files", "../example/defaults.yaml")
-			os.Setenv("INPUT_loglevel", l)
+			t.Setenv("INPUT_FILES", "../example/defaults.yaml")
+			t.Setenv("INPUT_LOGLEVEL", l)
 			plan, err := New()
 			if err != nil {
 				t.Logf("Got error %v", err)
@@ -252,8 +257,8 @@ root:
 	}
 
 	t.Run("Test wrong loglevel", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/defaults.yaml")
-		os.Setenv("INPUT_loglevel", "FOOBAR")
+		t.Setenv("INPUT_FILES", "../example/defaults.yaml")
+		t.Setenv("INPUT_LOGLEVEL", "FOOBAR")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Expected an error for an invalid LogLevel")
@@ -261,8 +266,8 @@ root:
 	})
 
 	t.Run("Test empty loglevel", func(t *testing.T) {
-		os.Setenv("INPUT_files", "../example/defaults.yaml")
-		os.Unsetenv("INPUT_loglevel")
+		t.Setenv("INPUT_FILES", "../example/defaults.yaml")
+		t.Setenv("INPUT_LOGLEVEL", "")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -275,15 +280,20 @@ root:
 }
 
 func TestOutput(t *testing.T) {
-	os.Setenv("INPUT_files", "../example/defaults.yaml")
-	os.Setenv("GITHUB_OUTPUT", "../output.tmp")
-	os.Setenv("INPUT_set_output", "true")
-	os.Setenv("GITHUB_ENV", "../env.tmp")
-	os.Setenv("INPUT_set_env", "true")
-	os.Setenv("INPUT_set_print", "true")
-	os.Setenv("INPUT_yaml", "../yaml.tmp")
-	os.Setenv("INPUT_generate_job", "true")
-	os.Setenv("INPUT_logfile", "../logfile.tmp")
+	if os.Getenv("GITHUB_ENV") == "" {
+		// running locally
+		os.Setenv("GITHUB_ENV", "../env.tmp")
+	}
+	t.Setenv("INPUT_FILES", "../example/defaults.yaml")
+	t.Setenv("GITHUB_OUTPUT", "../output.tmp")
+	t.Setenv("INPUT_SET_OUTPUT", "true")
+	t.Setenv("GITHUB_ENV", "../env.tmp")
+	t.Setenv("INPUT_SET_ENV", "true")
+	t.Setenv("INPUT_SET_PRINT", "true")
+	t.Setenv("INPUT_YAML", "../yaml.tmp")
+	t.Setenv("INPUT_GENERATE_JOB", "true")
+	t.Setenv("INPUT_LOGFILE", "../logfile.tmp")
+	t.Setenv("INPUT_LOGLEVEL", "TRACE")
 
 	plan, err := New()
 	if err != nil {
@@ -365,7 +375,5 @@ func TestOutput(t *testing.T) {
 		if s != "${{ steps.ltp.string }}" {
 			t.Errorf("'jobs.load_testplan.outputs.string' does not contain '${{ steps.ltp.string }}' but '%v'", s)
 		}
-
 	})
-
 }
