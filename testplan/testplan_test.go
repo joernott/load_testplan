@@ -11,6 +11,7 @@ import (
 )
 
 func TestNew(t *testing.T) {
+	os.Setenv("INPUT_loglevel", "TRACE")
 
 	t.Run("Empty mandatory parameters", func(t *testing.T) {
 		os.Unsetenv("INPUT_files")
@@ -284,6 +285,7 @@ func TestOutput(t *testing.T) {
 	os.Setenv("INPUT_yaml", "../yaml.tmp")
 	os.Setenv("INPUT_generate_job", "true")
 	os.Setenv("INPUT_logfile", "../logfile.tmp")
+	os.Setenv("INPUT_loglevel", "TRACE")
 
 	plan, err := New()
 	if err != nil {
