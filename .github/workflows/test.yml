@@ -1,0 +1,48 @@
+name: test
+# Run the unit tests and see, if we can build the application
+
+on:
+  push:
+    branches-ignore:
+      - 'development'
+      - 'main'
+
+jobs:
+  build:
+    runs-on: 'ubuntu-latest'
+    steps:
+      - name: Checkout development
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'source/go.mod'
+
+      - name: Unit Test
+        run: |
+          cd source/testplan
+          go test -v -cover -coverprofile=../../coverage.out
+          go tool cover -html=../../coverage.out -o ../../coverage.html
+
+      - name: Upload Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage
+          path: |
+            coverage.out
+            coverage.html
+
+      - name: Build
+        run: |
+          cd source
+          for GOOS in linux windows; do
+            export GOOS
+            for GOARCH in arm64 amd64; do
+              export GOARCH
+              go build -ldflags="-s -w" -o "main-${GOOS}-${GOARCH}-${{github.sha}}"
+            done
+          done
