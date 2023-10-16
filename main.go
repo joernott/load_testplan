@@ -11,5 +11,8 @@ func main() {
 	if err != nil {
 		os.Exit(1)
 	}
-	plan.Output()
+	err = plan.Output()
+	if err != nil {
+		os.Exit(1)
+	}
 }
