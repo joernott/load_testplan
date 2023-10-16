@@ -2,6 +2,7 @@ package testplan
 
 import (
 	"fmt"
+	githubactions "github.com/sethvargo/go-githubactions"
 	"gopkg.in/yaml.v3"
 	"net/http"
 	"net/http/httptest"
@@ -10,11 +11,20 @@ import (
 	"testing"
 )
 
+func SetEnv(t *testing.T, Key string, Value string) {
+	t.Setenv(Key, Value)
+	githubactions.SetEnv(Key, Value)
+}
+
 func TestNew(t *testing.T) {
-	t.Setenv("INPUT_loglevel", "TRACE")
+	if os.Getenv("GITHUB_ENV") == "" {
+		// running locally
+		os.Setenv("GITHUB_ENV", "../env.tmp")
+	}
+	SetEnv(t, "loglevel", "TRACE")
 
 	t.Run("Empty mandatory parameters", func(t *testing.T) {
-		t.Setenv("INPUT_files", "")
+		SetEnv(t, "INPUT_files", "")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the mandatory parameters are not set")
@@ -23,7 +33,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Non-existing file", func(t *testing.T) {
-		t.Setenv("INPUT_files", "nonexistant_yaml_file")
+		SetEnv(t, "INPUT_files", "nonexistant_yaml_file")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the yaml file does not exist")
@@ -32,7 +42,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Broken yaml file", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/kaputt.yaml")
+		SetEnv(t, "INPUT_files", "../example/kaputt.yaml")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Error is nil when the yaml file is broken")
@@ -41,7 +51,7 @@ func TestNew(t *testing.T) {
 	})
 
 	t.Run("Yaml without templating", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/defaults.yaml")
+		SetEnv(t, "INPUT_files", "../example/defaults.yaml")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -92,7 +102,7 @@ root:
 		}))
 		defer svr.Close()
 
-		t.Setenv("INPUT_files", svr.URL)
+		SetEnv(t, "INPUT_files", svr.URL)
 		t.Logf("URL: %v", svr.URL)
 		plan, err := New()
 		if err != nil {
@@ -127,7 +137,7 @@ root:
 		}))
 		defer svr.Close()
 
-		t.Setenv("INPUT_files", svr.URL)
+		SetEnv(t, "INPUT_files", svr.URL)
 		t.Logf("URL: %v", svr.URL)
 		_, err := New()
 		if err == nil {
@@ -136,9 +146,9 @@ root:
 	})
 
 	t.Run("Yaml with templating", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/with_template.yaml")
-		t.Setenv("GITHUB_REPOSITORY", "joernott/load_testplan")
-		t.Setenv("PATH", "/bin:/usr/bin")
+		SetEnv(t, "INPUT_files", "../example/with_template.yaml")
+		SetEnv(t, "GITHUB_REPOSITORY", "joernott/load_testplan")
+		SetEnv(t, "PATH", "/bin:/usr/bin")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -151,7 +161,7 @@ root:
 	})
 
 	t.Run("Merging yaml", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
+		SetEnv(t, "INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -177,16 +187,16 @@ root:
 	})
 
 	t.Run("Test inputs", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
-		t.Setenv("INPUT_separator", "__")
-		t.Setenv("GITHUB_OUTPUT", "../output.tmp")
-		t.Setenv("INPUT_set_output", "true")
-		t.Setenv("GITHUB_ENV", "../env.tmp")
-		t.Setenv("INPUT_set_env", "true")
-		t.Setenv("INPUT_set_print", "true")
-		t.Setenv("INPUT_yaml", "../yaml.tmp")
-		t.Setenv("INPUT_generate_job", "true")
-		t.Setenv("INPUT_logfile", "../logfile.tmp")
+		SetEnv(t, "INPUT_files", "../example/defaults.yaml,../example/overwrite_string_with_structure.yaml")
+		SetEnv(t, "INPUT_separator", "__")
+		SetEnv(t, "GITHUB_OUTPUT", "../output.tmp")
+		SetEnv(t, "INPUT_set_output", "true")
+		SetEnv(t, "GITHUB_ENV", "../env.tmp")
+		SetEnv(t, "INPUT_set_env", "true")
+		SetEnv(t, "INPUT_set_print", "true")
+		SetEnv(t, "INPUT_yaml", "../yaml.tmp")
+		SetEnv(t, "INPUT_generate_job", "true")
+		SetEnv(t, "INPUT_logfile", "../logfile.tmp")
 
 		plan, err := New()
 		if err != nil {
@@ -239,8 +249,8 @@ root:
 	levels := [7]string{"PANIC", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"}
 	for _, l := range levels {
 		t.Run("Test loglevel", func(t *testing.T) {
-			t.Setenv("INPUT_files", "../example/defaults.yaml")
-			t.Setenv("INPUT_loglevel", l)
+			SetEnv(t, "INPUT_files", "../example/defaults.yaml")
+			SetEnv(t, "INPUT_loglevel", l)
 			plan, err := New()
 			if err != nil {
 				t.Logf("Got error %v", err)
@@ -253,8 +263,8 @@ root:
 	}
 
 	t.Run("Test wrong loglevel", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/defaults.yaml")
-		t.Setenv("INPUT_loglevel", "FOOBAR")
+		SetEnv(t, "INPUT_files", "../example/defaults.yaml")
+		SetEnv(t, "INPUT_loglevel", "FOOBAR")
 		_, err := New()
 		if err == nil {
 			t.Errorf("Expected an error for an invalid LogLevel")
@@ -262,8 +272,8 @@ root:
 	})
 
 	t.Run("Test empty loglevel", func(t *testing.T) {
-		t.Setenv("INPUT_files", "../example/defaults.yaml")
-		t.Setenv("INPUT_loglevel", "")
+		SetEnv(t, "INPUT_files", "../example/defaults.yaml")
+		SetEnv(t, "INPUT_loglevel", "")
 		plan, err := New()
 		if err != nil {
 			t.Logf("Got error %v", err)
@@ -276,16 +286,20 @@ root:
 }
 
 func TestOutput(t *testing.T) {
-	t.Setenv("INPUT_files", "../example/defaults.yaml")
-	t.Setenv("GITHUB_OUTPUT", "../output.tmp")
-	t.Setenv("INPUT_set_output", "true")
-	t.Setenv("GITHUB_ENV", "../env.tmp")
-	t.Setenv("INPUT_set_env", "true")
-	t.Setenv("INPUT_set_print", "true")
-	t.Setenv("INPUT_yaml", "../yaml.tmp")
-	t.Setenv("INPUT_generate_job", "true")
-	t.Setenv("INPUT_logfile", "../logfile.tmp")
-	t.Setenv("INPUT_loglevel", "TRACE")
+	if os.Getenv("GITHUB_ENV") == "" {
+		// running locally
+		os.Setenv("GITHUB_ENV", "../env.tmp")
+	}
+	SetEnv(t, "INPUT_files", "../example/defaults.yaml")
+	SetEnv(t, "GITHUB_OUTPUT", "../output.tmp")
+	SetEnv(t, "INPUT_set_output", "true")
+	SetEnv(t, "GITHUB_ENV", "../env.tmp")
+	SetEnv(t, "INPUT_set_env", "true")
+	SetEnv(t, "INPUT_set_print", "true")
+	SetEnv(t, "INPUT_yaml", "../yaml.tmp")
+	SetEnv(t, "INPUT_generate_job", "true")
+	SetEnv(t, "INPUT_logfile", "../logfile.tmp")
+	SetEnv(t, "INPUT_loglevel", "TRACE")
 
 	plan, err := New()
 	if err != nil {
