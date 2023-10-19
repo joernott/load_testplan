@@ -16,6 +16,18 @@ inputs:
     description: 'Should the values be added to the environment variables'
     required: false
     default: false
+  set_print:
+    description: 'Should we print out the variables to stdout'
+    required: false
+    default: false
+  yaml:
+    description: 'Output the final data structure as yaml file'
+    required: false
+    default: ''
+  generate_output:
+    description: 'Generate a yaml file containing a job with all the outputs'
+    required: false
+    default: false
   logfile:
     description: 'Logfile to use, a dash (-) means stdout'
     required: false
