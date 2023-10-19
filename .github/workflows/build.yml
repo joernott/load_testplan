@@ -57,6 +57,7 @@ jobs:
           done
           sed -e "s|__VERSION__|${{github.sha}}|" invoke-binary.js.dist >../install/invoke-binary.js
           cp README.md ../install/README.md
+          cp action.yml ../install/action.yml
 
       - name: Run UPX
         uses: crazy-max/ghaction-upx@v3
