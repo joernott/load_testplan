@@ -59,7 +59,7 @@ jobs:
           logfile: '{{ .LogFile }}'
     outputs:
 {{- range $key, $value := .Outputs }}
-      {{ $key }}: ${{"{{"}} steps.ltp.{{ $key }} {{"}}"}}
+      {{ $key }}: ${{"{{"}} steps.ltp.outputs.{{ $key }} {{"}}"}}
 {{- end }}
 `
 
