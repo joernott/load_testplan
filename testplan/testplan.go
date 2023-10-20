@@ -296,11 +296,11 @@ func (plan *Testplan) debugOutputFile() {
 	if plan.SetOutput {
 		filename, ok := os.LookupEnv("GITHUB_OUTPUT")
 		if !ok {
-			logger.Error.Str("error", "Could not get GITHUB_OUTPUT").Msg("Failed to dump outputs")
+			logger.Error().Str("error", "Could not get GITHUB_OUTPUT").Msg("Failed to dump outputs")
 		} else {
 			data, err := os.ReadFile(filename)
 			if err != nil {
-				logger.Error.Err(err).Str("file", filename).Msg("Failed read file")
+				logger.Error().Err(err).Str("file", filename).Msg("Failed read file")
 			} else {
 				logger.Trace().Str("output", string(data)).Str("file", filename).Msg("Content of GITHUB_OUTPUT")
 			}
