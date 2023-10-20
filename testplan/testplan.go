@@ -283,7 +283,29 @@ func (plan *Testplan) Output() error {
 		plan.outputKey("", key, value, "")
 	}
 	err := plan.OutputJob()
+	if plan.LogLevel == "TRACE" {
+		plan.debugOutputFile()
+	}
 	return err
+}
+
+// debug the github output
+func (plan *Testplan) debugOutputFile() {
+	logger := log.With().Str("func", "Output").Str("package", "testplan").Logger()
+	logger.Trace().Msg("Enter func")
+	if plan.SetOutput {
+		filename, ok := os.LookupEnv("GITHUB_OUTPUT")
+		if !ok {
+			logger.Error.Str("error", "Could not get GITHUB_OUTPUT").Msg("Failed to dump outputs")
+		} else {
+			data, err := os.ReadFile(filename)
+			if err != nil {
+				logger.Error.Err(err).Str("file", filename).Msg("Failed read file")
+			} else {
+				logger.Trace().Str("output", string(data)).Str("file", filename).Msg("Content of GITHUB_OUTPUT")
+			}
+		}
+	}
 }
 
 // Recursively output a key with its value. If the value is an array, a multiline output will be generated, if its a map, we will descend
