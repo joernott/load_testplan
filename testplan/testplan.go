@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	githubactions "github.com/sethvargo/go-githubactions"
@@ -155,14 +156,23 @@ func (plan *Testplan) parseEnv() {
 }
 
 // Merge two maps
-func mergeMaps(maps ...map[string]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for _, m := range maps {
-		for k, v := range m {
-			result[k] = v
-		}
+func mergeMaps(a, b map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(a))
+	for k, v := range a {
+		out[k] = v
 	}
-	return result
+	for k, v := range b {
+		if v, ok := v.(map[string]interface{}); ok {
+			if bv, ok := out[k]; ok {
+				if bv, ok := bv.(map[string]interface{}); ok {
+					out[k] = mergeMaps(bv, v)
+					continue
+				}
+			}
+		}
+		out[k] = v
+	}
+	return out
 }
 
 // Load all files as templates, convert them into maps and merge them together
@@ -183,6 +193,9 @@ func (plan *Testplan) loadFiles() error {
 			return err
 		}
 		plan.Data = mergeMaps(plan.Data, data)
+		if plan.LogLevel == "TRACE" {
+			spew.Dump(plan.Data)
+		}
 	}
 	return nil
 }
@@ -329,7 +342,12 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 			fmt.Printf("%v=%v\n", prefix+key, v)
 		}
 		if plan.YamlName != "" {
-			fmt.Fprintf(plan.file, "%v%v: %v\n", yaml_indentation, key, v)
+			switch value.(type) {
+			case string:
+				fmt.Fprintf(plan.file, "%v%v: '%v'\n", yaml_indentation, key, v)
+			default:
+				fmt.Fprintf(plan.file, "%v%v: %v\n", yaml_indentation, key, v)
+			}
 		}
 		if plan.GenerateJob {
 			plan.Outputs[prefix+key] = v

@@ -6,7 +6,10 @@ on:
     branches-ignore:
       - 'development'
       - 'main'
-
+  pull_request:
+    branches-ignore:
+      - 'main'
+  
 jobs:
   build:
     runs-on: 'ubuntu-latest'

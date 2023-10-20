@@ -3,6 +3,7 @@ module github.com/joernott/load_testplan
 go 1.21.1
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/rs/zerolog v1.31.0
 	github.com/sethvargo/go-githubactions v1.1.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
