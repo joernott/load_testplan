@@ -372,8 +372,8 @@ func TestOutput(t *testing.T) {
 		if !ok {
 			t.Errorf("Could not find key 'jobs.load_testplan.outputs.string'")
 		}
-		if s != "${{ steps.ltp.string }}" {
-			t.Errorf("'jobs.load_testplan.outputs.string' does not contain '${{ steps.ltp.string }}' but '%v'", s)
+		if s != "${{ steps.ltp.outputs.string }}" {
+			t.Errorf("'jobs.load_testplan.outputs.string' does not contain '${{ steps.ltp.outputs.string }}' but '%v'", s)
 		}
 	})
 }
