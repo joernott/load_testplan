@@ -48,11 +48,12 @@ jobs:
       - name: Build
         run: |
           cd source
+          export CGO_ENABLED=0
           for GOOS in linux windows; do
             export GOOS
             for GOARCH in arm64 amd64; do
               export GOARCH
-              go build -ldflags="-s -w" -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
+              go build -tags netgo,osusergo -ldflags="-s -w" -o "../install/main-${GOOS}-${GOARCH}-${{github.sha}}"
             done
           done
           sed -e "s|__VERSION__|${{github.sha}}|" invoke-binary.js.dist >../install/invoke-binary.js
