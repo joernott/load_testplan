@@ -80,6 +80,10 @@ contains a job running the testplan with exactly the input parameters specified 
 job outputs for every key found in the loaded yaml file(s). Copying from this
 file can save you a lot of time when you have a lot of outputs you want to use in the workflow.
 
+**token**: _Optional_, default: ''
+If you want to check out a plan from a private github repository, you can set token to
+${{ github.token }} to add "?token=<dynamic token>" to the URL.
+
 ## Templating
 
 You can use (go templating)[https://pkg.go.dev/text/template] in the yaml files.

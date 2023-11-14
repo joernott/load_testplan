@@ -38,6 +38,7 @@ type Testplan struct {
 	Github      *githubactions.GitHubContext
 	Env         map[string]string
 	Outputs     map[string]string
+	Token       string
 }
 
 var generate_template = `
@@ -108,6 +109,8 @@ func New() (*Testplan, error) {
 	plan.GenerateJob = strings.ToLower(x) == "true"
 
 	plan.YamlName = plan.Actions.GetInput("yaml")
+
+	plan.Token = plan.Actions.GetInput("token")
 
 	a := zerolog.Arr()
 	for _, f := range plan.Files {
@@ -243,7 +246,11 @@ func (plan *Testplan) parseFile(name string) ([]byte, error) {
 			return b.Bytes(), err
 		}
 	} else {
-		s, err1 := getFromURL(name)
+		n := name
+		if plan.Token != "" {
+			n = n + "?token=" + plan.Token
+		}
+		s, err1 := getFromURL(n)
 		if err1 != nil {
 			return b.Bytes(), err1
 		}
