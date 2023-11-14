@@ -124,7 +124,8 @@ func New() (*Testplan, error) {
 		Bool("set_print", plan.SetPrint).
 		Bool("generate_job", plan.GenerateJob).
 		Str("yaml_name", plan.YamlName).
-		Msg("Inputs")
+		Str("token", plan.Token)
+	Msg("Inputs")
 
 	o := make(map[string]string)
 	plan.Outputs = o
@@ -249,6 +250,7 @@ func (plan *Testplan) parseFile(name string) ([]byte, error) {
 		n := name
 		if plan.Token != "" {
 			n = n + "?token=" + plan.Token
+			log.Debug().Msg("Adding token to url")
 		}
 		s, err1 := getFromURL(n)
 		if err1 != nil {
