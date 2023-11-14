@@ -36,6 +36,10 @@ inputs:
     description: 'Loglevel for the action, one of PANIC,FATAL,ERROR,WARN,INFO,DEBUG,TRACE'
     required: false
     default: 'WARN'
+  token:
+    description: 'Token to add to URLs'
+    required: false
+    default: ''
 runs:
   using: 'node20'
   main: 'invoke-binary.js'
