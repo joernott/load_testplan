@@ -84,6 +84,8 @@ func New() (*Testplan, error) {
 	}
 	plan.Github = g
 
+	plan.Token = plan.Actions.GetInput("token")
+
 	err = plan.getFileList()
 	if err != nil {
 		return nil, err
@@ -109,8 +111,6 @@ func New() (*Testplan, error) {
 	plan.GenerateJob = strings.ToLower(x) == "true"
 
 	plan.YamlName = plan.Actions.GetInput("yaml")
-
-	plan.Token = plan.Actions.GetInput("token")
 
 	a := zerolog.Arr()
 	for _, f := range plan.Files {
