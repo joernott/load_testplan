@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 
+	"encoding/json"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -25,12 +26,15 @@ import (
 type Testplan struct {
 	Actions     *githubactions.Action
 	Files       []string
+	InputType   string
 	Separator   string
 	SetOutput   bool
 	SetEnv      bool
 	SetPrint    bool
 	YamlName    string
-	file        *os.File
+	JsonName    string
+	yamlfile    *os.File
+	jsonfile    *os.File
 	GenerateJob bool
 	LogFile     string
 	LogLevel    string
@@ -51,11 +55,13 @@ jobs:
         uses: 'joernott/load_testplan@v1'
         with:
           files: '{{ range $i, $file := .Files }}{{ if gt $i 0 }},{{ end }}{{ $file }}{{ end }}'
+		  input_type: '{{ .InputType }}'
           separator: '{{ .Separator }}'
           set_output: {{ .SetOutput }}
           set_env: {{ .SetEnv }}
           set_print: {{ .SetPrint }}
           yaml: '{{ .YamlName }}'
+		  json: '{{ .JsonName }}'
           loglevel: '{{ .LogLevel }}'
           logfile: '{{ .LogFile }}'
     outputs:
@@ -86,6 +92,12 @@ func New() (*Testplan, error) {
 
 	plan.Token = plan.Actions.GetInput("token")
 
+	x := plan.Actions.GetInput("input_type")
+	plan.InputType = strings.ToLower(x)
+	if plan.InputType == "" {
+		plan.InputType = "yaml"
+	}
+
 	err = plan.getFileList()
 	if err != nil {
 		return nil, err
@@ -98,7 +110,7 @@ func New() (*Testplan, error) {
 	if plan.Separator == "" {
 		plan.Separator = "_"
 	}
-	x := plan.Actions.GetInput("set_output")
+	x = plan.Actions.GetInput("set_output")
 	plan.SetOutput = strings.ToLower(x) == "true"
 
 	x = plan.Actions.GetInput("set_env")
@@ -112,18 +124,22 @@ func New() (*Testplan, error) {
 
 	plan.YamlName = plan.Actions.GetInput("yaml")
 
+	plan.JsonName = plan.Actions.GetInput("json")
+
 	a := zerolog.Arr()
 	for _, f := range plan.Files {
 		a = a.Str(f)
 	}
 	logger.Debug().
 		Array("files", a).
+		Str("input_type", plan.InputType).
 		Str("separator", plan.Separator).
 		Bool("set_output", plan.SetOutput).
 		Bool("set_env", plan.SetEnv).
 		Bool("set_print", plan.SetPrint).
 		Bool("generate_job", plan.GenerateJob).
 		Str("yaml_name", plan.YamlName).
+		Str("json_name", plan.JsonName).
 		Str("token", plan.Token).
 		Msg("Inputs")
 
@@ -190,11 +206,22 @@ func (plan *Testplan) loadFiles() error {
 		if err != nil {
 			return err
 		}
+
 		var data map[string]interface{}
-		err = yaml.Unmarshal(input, &data)
-		if err != nil {
-			log.Error().Err(err).Str("file", f).Msg("Could not unmarshall yaml")
-			return err
+
+		switch plan.InputType {
+		case "json":
+			err = json.Unmarshal(input, &data)
+			if err != nil {
+				log.Error().Err(err).Str("file", f).Msg("Could not unmarshall json")
+				return err
+			}
+		default:
+			err = yaml.Unmarshal(input, &data)
+			if err != nil {
+				log.Error().Err(err).Str("file", f).Msg("Could not unmarshall yaml")
+				return err
+			}
 		}
 		plan.Data = mergeMaps(plan.Data, data)
 		if plan.LogLevel == "TRACE" {
@@ -282,15 +309,33 @@ func (plan *Testplan) Output() error {
 			logger.Warn().Err(err).Str("file", plan.YamlName).Msg("Can't open yaml file, skipping yaml output")
 			plan.YamlName = ""
 		} else {
-			plan.file = f
-			defer plan.file.Close()
-			fmt.Fprintln(plan.file, "---")
+			plan.yamlfile = f
+			defer plan.yamlfile.Close()
+			fmt.Fprintln(plan.yamlfile, "---")
 		}
 	}
 
 	for key, value := range plan.Data {
 		plan.outputKey("", key, value, "")
 	}
+
+	if plan.JsonName != "" {
+		f, err := os.Create(plan.JsonName)
+		if err != nil {
+			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't open json file, skipping json output")
+			//plan.JsonName = ""
+			return err
+		}
+		plan.jsonfile = f
+		defer plan.jsonfile.Close()
+		j, err := json.Marshal(plan.Data)
+		if err != nil {
+			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't marshal json, skipping json output")
+			return err
+		}
+		fmt.Fprintf(plan.jsonfile, string(j))
+	}
+
 	err := plan.OutputJob()
 	if plan.LogLevel == "TRACE" {
 		plan.debugOutputFile()
@@ -333,20 +378,20 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 			fmt.Println("\033[35m" + prefix + key + "\033[0m")
 		}
 		if plan.YamlName != "" {
-			fmt.Fprintf(plan.file, "%v%v:\n", yaml_indentation, key)
+			fmt.Fprintf(plan.yamlfile, "%v%v:\n", yaml_indentation, key)
 		}
 		for k, v := range value.(map[string]interface{}) {
 			plan.outputKey(prefix+key+plan.Separator, k, v, yaml_indentation+"  ")
 		}
 	case []interface{}:
 		if plan.YamlName != "" {
-			fmt.Fprintf(plan.file, "%v%v:\n", yaml_indentation, key)
+			fmt.Fprintf(plan.yamlfile, "%v%v:\n", yaml_indentation, key)
 		}
 		o := ""
 		for _, v := range value.([]interface{}) {
 			o = o + "\n" + fmt.Sprintf("%v", v)
 			if plan.YamlName != "" {
-				fmt.Fprintf(plan.file, "%v  - %v\n", yaml_indentation, v)
+				fmt.Fprintf(plan.yamlfile, "%v  - %v\n", yaml_indentation, v)
 			}
 		}
 		o = o[1:]
@@ -375,9 +420,14 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 		if plan.YamlName != "" {
 			switch value.(type) {
 			case string:
-				fmt.Fprintf(plan.file, "%v%v: '%v'\n", yaml_indentation, key, v)
+				if strings.Contains(v, "\n") {
+					v = yaml_indentation + yaml_indentation + strings.ReplaceAll(v, "\n", "\n"+yaml_indentation+yaml_indentation)
+					fmt.Fprintf(plan.yamlfile, "%v%v: |\n%v\n", yaml_indentation, key, v)
+				} else {
+					fmt.Fprintf(plan.yamlfile, "%v%v: '%v'\n", yaml_indentation, key, v)
+				}
 			default:
-				fmt.Fprintf(plan.file, "%v%v: %v\n", yaml_indentation, key, v)
+				fmt.Fprintf(plan.yamlfile, "%v%v: %v\n", yaml_indentation, key, v)
 			}
 		}
 		if plan.GenerateJob {
