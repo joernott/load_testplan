@@ -55,13 +55,13 @@ jobs:
         uses: 'joernott/load_testplan@v1'
         with:
           files: '{{ range $i, $file := .Files }}{{ if gt $i 0 }},{{ end }}{{ $file }}{{ end }}'
-		  input_type: '{{ .InputType }}'
+          input_type: '{{ .InputType }}'
           separator: '{{ .Separator }}'
           set_output: {{ .SetOutput }}
           set_env: {{ .SetEnv }}
           set_print: {{ .SetPrint }}
           yaml: '{{ .YamlName }}'
-		  json: '{{ .JsonName }}'
+          json: '{{ .JsonName }}'
           loglevel: '{{ .LogLevel }}'
           logfile: '{{ .LogFile }}'
     outputs:
