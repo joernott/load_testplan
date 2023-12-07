@@ -354,7 +354,7 @@ func TestOutput(t *testing.T) {
 		}
 		var data map[string]interface{}
 		if err := yaml.Unmarshal(b, &data); err != nil {
-			t.Errorf("Could not unmarshall yaml, reason: %v", err)
+			t.Errorf("Could not unmarshall yaml, reason: %v, data %v ", err, string(b))
 		}
 		j, ok := data["jobs"].(map[string]interface{})
 		if !ok {
