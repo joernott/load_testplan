@@ -1,7 +1,7 @@
 # Github action load_testplan
-This github action loads one or more yaml files, applying golang templating and
+This github action loads one or more yaml or json files, applying golang templating and
 merging them together to generate either environment variables or outputs to be
-used in github actions.
+used in github actions. It can also output yaml or json files containing the merged data.
 
 The code is maintained in the (development branch)[https://github.com/joernott/load_testplan/tree/development],
 the (main branch)[https://github.com/joernott/load_testplan/tree/main] only
@@ -27,6 +27,13 @@ The action has the following inputs:
 A comma separated list of yaml files to be parsed. You can use go template
 syntax in those files (see below). Files are parsed from left to right and
 content from later files overrides previous values.
+
+**input_type**: _Not required_, 'auto'  
+Set this to "yaml" and all the files specified in the _files_ parameter will be
+loaded as yaml files. Set it to "json" to always assume them to be json files.
+If this is set to "auto", it will try to determine the file type based on its
+suffix. Files ending in ".yml" or ".yaml" will be loaded as yaml, files with
+".json", ".jsn", ",jso" or ".js" will be loaded as json.
 
 **separator**: _Optional_, default: '_'  
 When flattening hierarchical yaml into key/value pairs, this separator will be
@@ -63,8 +70,12 @@ compile_flags='--foo'
 ```
 
 **yaml**: _Optional_, default: ''  
-If you provide a file name here, the merged and processed yaml will be written
-into the file. This helps debugging merge issues.
+If you provide a file name here, the merged and processed data will be written
+into the file as yaml. This helps debugging merge issues or can be used as later input.
+
+**json**: _Optional_, default: ''  
+If you provide a file name here, the merged and processed data will be written
+into the file as json. This helps debugging merge issues or can be used as later input.
 
 **logfile**: _Optional_, default: '-'  
 Tis defines where the actions log messages/output should go. The default "-"

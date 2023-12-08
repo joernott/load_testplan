@@ -11,26 +11,31 @@ import (
 	"errors"
 	"fmt"
 
+	"encoding/json"
+	"net/http"
+	"net/url"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	githubactions "github.com/sethvargo/go-githubactions"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
-	"net/http"
-	"net/url"
 )
 
 // Input parameters for this action
 type Testplan struct {
 	Actions     *githubactions.Action
 	Files       []string
+	InputType   string
 	Separator   string
 	SetOutput   bool
 	SetEnv      bool
 	SetPrint    bool
 	YamlName    string
-	file        *os.File
+	JsonName    string
+	yamlfile    *os.File
+	jsonfile    *os.File
 	GenerateJob bool
 	LogFile     string
 	LogLevel    string
@@ -51,11 +56,13 @@ jobs:
         uses: 'joernott/load_testplan@v1'
         with:
           files: '{{ range $i, $file := .Files }}{{ if gt $i 0 }},{{ end }}{{ $file }}{{ end }}'
+          input_type: '{{ .InputType }}'
           separator: '{{ .Separator }}'
           set_output: {{ .SetOutput }}
           set_env: {{ .SetEnv }}
           set_print: {{ .SetPrint }}
           yaml: '{{ .YamlName }}'
+          json: '{{ .JsonName }}'
           loglevel: '{{ .LogLevel }}'
           logfile: '{{ .LogFile }}'
     outputs:
@@ -86,6 +93,12 @@ func New() (*Testplan, error) {
 
 	plan.Token = plan.Actions.GetInput("token")
 
+	x := plan.Actions.GetInput("input_type")
+	plan.InputType = strings.ToLower(x)
+	if plan.InputType == "" {
+		plan.InputType = "auto"
+	}
+
 	err = plan.getFileList()
 	if err != nil {
 		return nil, err
@@ -98,7 +111,7 @@ func New() (*Testplan, error) {
 	if plan.Separator == "" {
 		plan.Separator = "_"
 	}
-	x := plan.Actions.GetInput("set_output")
+	x = plan.Actions.GetInput("set_output")
 	plan.SetOutput = strings.ToLower(x) == "true"
 
 	x = plan.Actions.GetInput("set_env")
@@ -112,18 +125,22 @@ func New() (*Testplan, error) {
 
 	plan.YamlName = plan.Actions.GetInput("yaml")
 
+	plan.JsonName = plan.Actions.GetInput("json")
+
 	a := zerolog.Arr()
 	for _, f := range plan.Files {
 		a = a.Str(f)
 	}
 	logger.Debug().
 		Array("files", a).
+		Str("type", plan.InputType).
 		Str("separator", plan.Separator).
 		Bool("set_output", plan.SetOutput).
 		Bool("set_env", plan.SetEnv).
 		Bool("set_print", plan.SetPrint).
 		Bool("generate_job", plan.GenerateJob).
 		Str("yaml_name", plan.YamlName).
+		Str("json_name", plan.JsonName).
 		Str("token", plan.Token).
 		Msg("Inputs")
 
@@ -190,11 +207,37 @@ func (plan *Testplan) loadFiles() error {
 		if err != nil {
 			return err
 		}
+
 		var data map[string]interface{}
-		err = yaml.Unmarshal(input, &data)
-		if err != nil {
-			log.Error().Err(err).Str("file", f).Msg("Could not unmarshall yaml")
-			return err
+		t := plan.InputType
+		if t == "auto" {
+			s := strings.Split(f, ".")
+			suffix := s[len(s)-1]
+			switch suffix {
+			case "json", "jso", "jsn", "js":
+				t = "json"
+			case "yaml", "yml":
+				t = "yaml"
+			default:
+				err := errors.New("Unkonwn file suffix " + suffix + ". Can't use input type 'auto'.")
+				log.Error().Err(err).Str("file", f).Str("suffix", suffix).Msg("Can't determine file type")
+				return err
+			}
+		}
+
+		switch t {
+		case "json":
+			err = json.Unmarshal(input, &data)
+			if err != nil {
+				log.Error().Err(err).Str("file", f).Msg("Could not unmarshall json")
+				return err
+			}
+		default:
+			err = yaml.Unmarshal(input, &data)
+			if err != nil {
+				log.Error().Err(err).Str("file", f).Msg("Could not unmarshall yaml")
+				return err
+			}
 		}
 		plan.Data = mergeMaps(plan.Data, data)
 		if plan.LogLevel == "TRACE" {
@@ -235,39 +278,43 @@ func getFromURL(url string) (string, error) {
 func (plan *Testplan) parseFile(name string) ([]byte, error) {
 	logger := log.With().Str("func", "readFile").Str("package", "testplan").Logger()
 	logger.Trace().Msg("Enter func")
+	var raw string
 	var b bytes.Buffer
 	var t *template.Template
+	var template_name string
 
 	u, err := url.ParseRequestURI(name)
 	if err != nil || u.Scheme == "file" {
-		t = template.New(path.Base(name))
-		t, err = t.ParseFiles(name)
+		s, err := os.ReadFile(name)
+		template_name = path.Base(name)
+		raw = string(s)
 		if err != nil {
 			log.Error().Err(err).Str("file", name).Msg("Failed to read file")
 			return b.Bytes(), err
 		}
 	} else {
+		template_name = path.Base(u.Path)
 		n := name
 		if plan.Token != "" {
 			n = n + "?token=" + plan.Token
 			log.Debug().Msg("Adding token to url")
 		}
-		s, err1 := getFromURL(n)
-		if err1 != nil {
-			return b.Bytes(), err1
-		}
-		t = template.New(path.Base(u.Path))
-		t, err1 = t.Parse(s)
-		if err1 != nil {
-			log.Error().Err(err).Str("file", name).Msg("Failed to parse template from URL")
-			return b.Bytes(), err1
+		raw, err = getFromURL(n)
+		if err != nil {
+			return b.Bytes(), err
 		}
 	}
-
-	if err = t.Execute(&b, plan); err != nil {
+	t = template.New(template_name)
+	t, err = t.Parse(raw)
+	if err != nil {
 		log.Error().Err(err).Str("file", name).Msg("Failed to parse template")
 		return b.Bytes(), err
 	}
+	if err = t.Execute(&b, plan); err != nil {
+		log.Error().Err(err).Str("file", name).Msg("Failed to execute template")
+		return b.Bytes(), err
+	}
+	log.Trace().Str("raw", raw).Str("parsed", string(b.Bytes())).Msg("Parsed file")
 	return b.Bytes(), nil
 }
 
@@ -282,15 +329,33 @@ func (plan *Testplan) Output() error {
 			logger.Warn().Err(err).Str("file", plan.YamlName).Msg("Can't open yaml file, skipping yaml output")
 			plan.YamlName = ""
 		} else {
-			plan.file = f
-			defer plan.file.Close()
-			fmt.Fprintln(plan.file, "---")
+			plan.yamlfile = f
+			defer plan.yamlfile.Close()
+			fmt.Fprintln(plan.yamlfile, "---")
 		}
 	}
 
 	for key, value := range plan.Data {
 		plan.outputKey("", key, value, "")
 	}
+
+	if plan.JsonName != "" {
+		f, err := os.Create(plan.JsonName)
+		if err != nil {
+			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't open json file, skipping json output")
+			//plan.JsonName = ""
+			return err
+		}
+		plan.jsonfile = f
+		defer plan.jsonfile.Close()
+		j, err := json.MarshalIndent(plan.Data, "", "    ")
+		if err != nil {
+			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't marshal json, skipping json output")
+			return err
+		}
+		fmt.Fprint(plan.jsonfile, string(j))
+	}
+
 	err := plan.OutputJob()
 	if plan.LogLevel == "TRACE" {
 		plan.debugOutputFile()
@@ -333,20 +398,20 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 			fmt.Println("\033[35m" + prefix + key + "\033[0m")
 		}
 		if plan.YamlName != "" {
-			fmt.Fprintf(plan.file, "%v%v:\n", yaml_indentation, key)
+			fmt.Fprintf(plan.yamlfile, "%v%v:\n", yaml_indentation, key)
 		}
 		for k, v := range value.(map[string]interface{}) {
 			plan.outputKey(prefix+key+plan.Separator, k, v, yaml_indentation+"  ")
 		}
 	case []interface{}:
 		if plan.YamlName != "" {
-			fmt.Fprintf(plan.file, "%v%v:\n", yaml_indentation, key)
+			fmt.Fprintf(plan.yamlfile, "%v%v:\n", yaml_indentation, key)
 		}
 		o := ""
 		for _, v := range value.([]interface{}) {
 			o = o + "\n" + fmt.Sprintf("%v", v)
 			if plan.YamlName != "" {
-				fmt.Fprintf(plan.file, "%v  - %v\n", yaml_indentation, v)
+				fmt.Fprintf(plan.yamlfile, "%v  - %v\n", yaml_indentation, v)
 			}
 		}
 		o = o[1:]
@@ -375,9 +440,14 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 		if plan.YamlName != "" {
 			switch value.(type) {
 			case string:
-				fmt.Fprintf(plan.file, "%v%v: '%v'\n", yaml_indentation, key, v)
+				if strings.Contains(v, "\n") {
+					v = yaml_indentation + yaml_indentation + strings.ReplaceAll(v, "\n", "\n"+yaml_indentation+yaml_indentation)
+					fmt.Fprintf(plan.yamlfile, "%v%v: |\n%v\n", yaml_indentation, key, v)
+				} else {
+					fmt.Fprintf(plan.yamlfile, "%v%v: '%v'\n", yaml_indentation, key, v)
+				}
 			default:
-				fmt.Fprintf(plan.file, "%v%v: %v\n", yaml_indentation, key, v)
+				fmt.Fprintf(plan.yamlfile, "%v%v: %v\n", yaml_indentation, key, v)
 			}
 		}
 		if plan.GenerateJob {

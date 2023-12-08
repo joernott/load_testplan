@@ -1,0 +1,7 @@
+{
+    "another_string":{
+        "array":["First","Second","Third"],
+        "number":42,
+        "string":"Another string"
+    }
+}
