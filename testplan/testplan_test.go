@@ -97,6 +97,7 @@ root:
 		defer svr.Close()
 
 		t.Setenv("INPUT_FILES", svr.URL)
+		t.Setenv("INPUT_INPUT_TYPE", 'yaml')
 		t.Logf("URL: %v", svr.URL)
 		plan, err := New()
 		if err != nil {
