@@ -12,14 +12,15 @@ import (
 	"fmt"
 
 	"encoding/json"
+	"net/http"
+	"net/url"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	githubactions "github.com/sethvargo/go-githubactions"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"gopkg.in/yaml.v3"
-	"net/http"
-	"net/url"
 )
 
 // Input parameters for this action
@@ -95,7 +96,7 @@ func New() (*Testplan, error) {
 	x := plan.Actions.GetInput("input_type")
 	plan.InputType = strings.ToLower(x)
 	if plan.InputType == "" {
-		plan.InputType = "yaml"
+		plan.InputType = "auto"
 	}
 
 	err = plan.getFileList()
@@ -132,7 +133,7 @@ func New() (*Testplan, error) {
 	}
 	logger.Debug().
 		Array("files", a).
-		Str("input_type", plan.InputType).
+		Str("type", plan.InputType).
 		Str("separator", plan.Separator).
 		Bool("set_output", plan.SetOutput).
 		Bool("set_env", plan.SetEnv).
@@ -208,8 +209,23 @@ func (plan *Testplan) loadFiles() error {
 		}
 
 		var data map[string]interface{}
+		t := plan.InputType
+		if t == "auto" {
+			s := strings.Split(f, ".")
+			suffix := s[len(s)-1]
+			switch suffix {
+			case "json", "jso", "jsn", "js":
+				t = "json"
+			case "yaml", "yml":
+				t = "yaml"
+			default:
+				err := errors.New("Unkonwn file suffix " + suffix + ". Can't use input type 'auto'.")
+				log.Error().Err(err).Str("file", f).Str("suffix", suffix).Msg("Can't determine file type")
+				return err
+			}
+		}
 
-		switch plan.InputType {
+		switch t {
 		case "json":
 			err = json.Unmarshal(input, &data)
 			if err != nil {
@@ -262,39 +278,43 @@ func getFromURL(url string) (string, error) {
 func (plan *Testplan) parseFile(name string) ([]byte, error) {
 	logger := log.With().Str("func", "readFile").Str("package", "testplan").Logger()
 	logger.Trace().Msg("Enter func")
+	var raw string
 	var b bytes.Buffer
 	var t *template.Template
+	var template_name string
 
 	u, err := url.ParseRequestURI(name)
 	if err != nil || u.Scheme == "file" {
-		t = template.New(path.Base(name))
-		t, err = t.ParseFiles(name)
+		s, err := os.ReadFile(name)
+		template_name = path.Base(name)
+		raw = string(s)
 		if err != nil {
 			log.Error().Err(err).Str("file", name).Msg("Failed to read file")
 			return b.Bytes(), err
 		}
 	} else {
+		template_name = path.Base(u.Path)
 		n := name
 		if plan.Token != "" {
 			n = n + "?token=" + plan.Token
 			log.Debug().Msg("Adding token to url")
 		}
-		s, err1 := getFromURL(n)
-		if err1 != nil {
-			return b.Bytes(), err1
-		}
-		t = template.New(path.Base(u.Path))
-		t, err1 = t.Parse(s)
-		if err1 != nil {
-			log.Error().Err(err).Str("file", name).Msg("Failed to parse template from URL")
-			return b.Bytes(), err1
+		raw, err = getFromURL(n)
+		if err != nil {
+			return b.Bytes(), err
 		}
 	}
-
-	if err = t.Execute(&b, plan); err != nil {
+	t = template.New(template_name)
+	t, err = t.Parse(raw)
+	if err != nil {
 		log.Error().Err(err).Str("file", name).Msg("Failed to parse template")
 		return b.Bytes(), err
 	}
+	if err = t.Execute(&b, plan); err != nil {
+		log.Error().Err(err).Str("file", name).Msg("Failed to execute template")
+		return b.Bytes(), err
+	}
+	log.Trace().Str("raw", raw).Str("parsed", string(b.Bytes())).Msg("Parsed file")
 	return b.Bytes(), nil
 }
 
@@ -328,12 +348,12 @@ func (plan *Testplan) Output() error {
 		}
 		plan.jsonfile = f
 		defer plan.jsonfile.Close()
-		j, err := json.Marshal(plan.Data)
+		j, err := json.MarshalIndent(plan.Data, "", "    ")
 		if err != nil {
 			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't marshal json, skipping json output")
 			return err
 		}
-		fmt.Fprintf(plan.jsonfile, string(j))
+		fmt.Fprint(plan.jsonfile, string(j))
 	}
 
 	err := plan.OutputJob()
