@@ -4,6 +4,10 @@ inputs:
   files:
     description: 'Comma separated list of yaml files which will me merged from left to right'
     required: true
+  input_type:
+    description: 'Type of files to read, this can either be "auto", "yaml" or "json"'
+    required: false
+    default: 'auto'
   separator:
     description: 'Separator for chaining the yaml hierarch levels'
     required: false
@@ -22,6 +26,10 @@ inputs:
     default: false
   yaml:
     description: 'Output the final data structure as yaml file'
+    required: false
+    default: ''
+  json:
+    description: 'Output the final data structure as json file'
     required: false
     default: ''
   generate_output:
