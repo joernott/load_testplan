@@ -154,7 +154,7 @@ func (plan *Testplan) outputKey(prefix string, key string, value interface{}, ya
 			switch value.(type) {
 			case string:
 				if strings.Contains(v, "\n") {
-					v = yaml_indentation + yaml_indentation + strings.ReplaceAll(v, "\n", "\n"+yaml_indentation+yaml_indentation)
+					v = yaml_indentation + "  " + strings.ReplaceAll(v, "\n", "\n"+yaml_indentation+"  ")
 					fmt.Fprintf(plan.yamlfile, "%v%v: |\n%v\n", yaml_indentation, key, v)
 				} else {
 					fmt.Fprintf(plan.yamlfile, "%v%v: '%v'\n", yaml_indentation, key, v)

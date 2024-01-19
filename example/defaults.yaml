@@ -8,3 +8,7 @@ root:
 array:
   - First
   - Second
+multiline_string: |
+  foo
+  bar
+  baz
