@@ -21,7 +21,6 @@ type Testplan struct {
 	YamlName    string
 	JsonName    string
 	yamlfile    *os.File
-	jsonfile    *os.File
 	GenerateJob bool
 	LogFile     string
 	LogLevel    string

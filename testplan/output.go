@@ -31,37 +31,33 @@ func (plan *Testplan) Output() error {
 		plan.outputKey("", key, value, "")
 	}
 
-	err := plan.OutputJson()
-	if err != nil {
-		return err
-	}
+	plan.OutputJson()
 
-	err = plan.OutputJob()
+	err := plan.OutputJob()
 	if plan.LogLevel == "TRACE" {
 		plan.debugOutputFile()
 	}
 	return err
 }
 
-func (plan *Testplan) OutputJson() error {
+func (plan *Testplan) OutputJson() {
 	logger := log.With().Str("func", "OutputJson").Str("package", "testplan").Logger()
 	logger.Trace().Msg("Enter func")
 	if plan.JsonName != "" {
 		f, err := os.Create(plan.JsonName)
 		if err != nil {
 			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't open json file, skipping json output")
-			return err
+			return
 		}
-		plan.jsonfile = f
-		defer plan.jsonfile.Close()
+		defer f.Close()
 		j, err := json.MarshalIndent(plan.Data, "", "    ")
 		if err != nil {
 			logger.Warn().Err(err).Str("file", plan.JsonName).Msg("Can't marshal json, skipping json output")
-			return err
+			return
 		}
-		fmt.Fprint(plan.jsonfile, string(j))
+		fmt.Fprint(f, string(j))
 	}
-	return nil
+	return
 }
 
 // debug the github output
