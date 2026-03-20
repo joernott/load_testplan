@@ -83,7 +83,7 @@ root:
     leaf: 'A small leaf'
 `
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, yaml)
+			fmt.Fprintf(w, "%v\n", yaml)
 		}))
 		defer svr.Close()
 
@@ -217,7 +217,7 @@ root:
 		}
 		`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprintf(w, json)
+			fmt.Fprintf(w, "%v\n", json)
 		}))
 		defer svr.Close()
 
